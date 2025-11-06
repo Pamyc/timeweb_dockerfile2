@@ -15,9 +15,8 @@ RUN npm run build
 FROM node:20-alpine AS runner
 WORKDIR /app
 
-# Python + pip + supervisor + wget
-RUN apk add --no-cache python3 py3-pip supervisor wget \
- && python3 -m pip install --upgrade pip
+# Python + pip + supervisor + wget (без апгрейда pip — важный момент для Alpine/PEP 668)
+RUN apk add --no-cache python3 py3-pip supervisor wget
 
 # Non-root user
 RUN addgroup -g 1001 -S nodejs && adduser -S nextjs -u 1001
@@ -27,13 +26,13 @@ COPY --from=builder /app/.next/standalone ./
 COPY --from=builder /app/.next/static ./.next/static
 COPY --from=builder /app/public ./public
 
-# Copy Flask backend and install deps
+# Copy Flask backend and install deps (разрешаем установку в системный префикс)
 COPY backend ./backend
 COPY requirements.txt ./requirements.txt
 RUN if [ -f requirements.txt ]; then \
-      python3 -m pip install --no-cache-dir -r requirements.txt; \
+      python3 -m pip install --no-cache-dir --break-system-packages -r requirements.txt; \
     else \
-      python3 -m pip install --no-cache-dir -r backend/requirements.txt; \
+      python3 -m pip install --no-cache-dir --break-system-packages -r backend/requirements.txt; \
     fi
 
 # Supervisord
